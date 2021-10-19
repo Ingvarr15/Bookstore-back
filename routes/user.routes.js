@@ -84,4 +84,9 @@ module.exports = function(app) {
     '/get-one-book',
     controller.getOneBook
   )
+
+  app.delete(
+    `/delete-comment`,
+    controller.deleteComment
+  )
 }

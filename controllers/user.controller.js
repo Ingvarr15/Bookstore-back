@@ -107,6 +107,17 @@ exports.deletePersonal = (req, res) => {
   })
 }
 
+exports.deleteComment = async (req, res) => {
+  console.log(req.body)
+  try {
+    const targetComment = await Comment.findByPk(req.body.id)
+    targetComment.destroy()
+    res.status(201).send('Comment deleted')
+  } catch (error) {
+    console.log(error)
+  }
+}
+
 exports.sendComment = async (req, res) => {
   let token = req.cookies.token
   let userId
@@ -138,15 +149,6 @@ exports.sendComment = async (req, res) => {
           replier: replier.id,
           text: comment.text
         })
-
-
-        // comment.replyTo = replyTarget.id
-        // Reply.create({
-        //   targetId: replyTarget.id,
-        //   book: targetBook.id,
-        //   replier: replier.id,
-        //   text: comment.text,
-        // })
       }
       io.emit('newComment')
       res.status(200).send('ok')
@@ -218,9 +220,15 @@ exports.getComments = async (req, res) => {
     })
     for await (let item of comments) {
       let owner = await User.findByPk(item.UserId)
+      let replyToUsername = item.replyTo === null ? null : await User.findOne({ 
+        where: {
+          id: item.replyTo
+        }
+      })
       if (owner) {
         resArr.push({
           id: item.id,
+          replyToUsername: item.replyTo === null ? null : replyToUsername.username,
           owner: owner.username,
           ownerId: owner.id,
           text: item.text,
@@ -238,6 +246,7 @@ exports.getComments = async (req, res) => {
     }
     res.status(200).send(resArr)
   } catch (error) {
+    console.log(error)
   }
 }
 
