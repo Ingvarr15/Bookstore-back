@@ -23,6 +23,7 @@ exports.getPersonal = (req, res) => {
     User.findByPk(userId).then(user => {
       return res.status(200).send({
         id: user.id,
+        avatar: !user.avatar ? null : Buffer.from(user.avatar).toString('base64'),
         username: user.username,
         email: user.email,
         dob: user.dob,
@@ -48,7 +49,7 @@ exports.updatePersonal = (req, res) => {
       })
     }
     userId = decoded.id
-    let { username, email, password, dob } = req.body
+    let { username, email, password, dob, avatar } = req.body
     User.findByPk(userId).then(user => {
       if (username) {
         user.username = username
@@ -63,6 +64,9 @@ exports.updatePersonal = (req, res) => {
       if (dob) {
         user.dob = dob
         targetField = 'dob'
+      }
+      if (avatar) {
+        user.avatar = avatar
       }
       return user
     })
