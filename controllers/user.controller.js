@@ -1,7 +1,7 @@
 const db = require('../models')
 const User = db.User
 const Book = db.Book
-// const Reply = db.Replies
+const Rating = db.Rating
 const Comment = db.Comment
 const jwt = require('jsonwebtoken')
 const config = require('../config/auth.config.js')
@@ -9,10 +9,11 @@ let cryptoJS = require("crypto-js")
 const crypto = require('crypto')
 const fs = require('fs')
 const { Op } = require('sequelize')
+const { sequelize } = require('../models')
 
-
-exports.getPersonal = (req, res) => {
+exports.getPersonal = async (req, res) => {
   let token = req.cookies.token
+  let userId
   jwt.verify(token, config.secret, (err, decoded) => {
     if (err) {
       return res.status(401).send({
@@ -20,23 +21,36 @@ exports.getPersonal = (req, res) => {
       })
     }
     userId = decoded.id
-    User.findByPk(userId).then(user => {
-      return res.status(200).send({
-        id: user.id,
-        avatar: !user.avatar ? null : Buffer.from(user.avatar).toString('base64'),
-        username: user.username,
-        email: user.email,
-        dob: user.dob,
-        role: user.RoleId
-      })
-    })
-    .catch(err => {
-      res.clearCookie('token')
-      res.status(404).send({
-        message: 'User not found'
-      })
-    })
   })
+  try {
+    const targetUser = await User.findByPk(userId)
+    const ratingsArr = []
+    const ratings = await Rating.findAll({
+      where: {
+        UserId: userId
+      }
+    })
+    for await (let item of ratings) {
+      ratingsArr.push({
+        book: item.BookId,
+        rating: item.rating
+      })
+    }
+    res.status(200).send({
+      id: targetUser.id,
+      avatar: !targetUser.avatar ? null : Buffer.from(targetUser.avatar).toString('base64'),
+      username: targetUser.username,
+      email: targetUser.email,
+      dob: targetUser.dob,
+      role: targetUser.RoleId,
+      ratings: ratingsArr
+    })
+  } catch (error) {
+    res.clearCookie('token')
+    res.status(404).send({
+      message: 'User not found'
+    })
+  }
 }
 
 exports.updatePersonal = (req, res) => {
@@ -262,11 +276,78 @@ exports.setSocket = async (req, res) => {
       }
     })
     owner.socket = req.body.socket
-    owner.save()
+    await owner.save()
     res.status(200).send('ok')
   } catch (error) {
     console.log(error)
   }
+}
+
+exports.setRating = async (req, res) => {
+  let token = req.cookies.token
+  let userId
+  jwt.verify(token, config.secret, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({
+        message: 'Unauthorized'
+      })
+    }
+    userId = decoded.id
+  })
+    try {
+      const targetBook = await Book.findOne({
+        where: {
+          id: req.body.bookId
+        }
+      })
+
+      const existingRating = await Rating.findOne({
+        where: {
+          BookId: req.body.bookId,
+          UserId: userId
+        }
+      })
+
+      if (existingRating === null) {
+        const newRating = await Rating.create({
+          rating: req.body.rating
+        })
+        await newRating.setUser(userId)
+        await newRating.setBook(req.body.bookId)
+        await newRating.save()
+        targetBook.rating = newRating.rating
+        await targetBook.save()
+        await recalculateRating()
+      } else {
+        existingRating.rating = +req.body.rating
+        await existingRating.save()
+        await recalculateRating()
+      }      
+      res.status(200).send('ok')
+
+      async function recalculateRating() {
+        const countRaters = await Rating.count({
+          where: {
+            BookId: req.body.bookId
+          }
+        })
+        if (countRaters === 1) {
+          targetBook.rating = +req.body.rating
+        } else {
+          const result = await Rating.findAll({
+            attributes: [[sequelize.fn('sum', sequelize.col('rating')), 'total']],
+            where: {
+              BookId: req.body.bookId
+            }
+          })
+          targetBook.rating = result[0].dataValues.total / countRaters
+        }
+        await targetBook.save()
+      }
+
+    } catch (error) {
+      console.log(error)
+    }
 }
 
 exports.uploadBook = (req, res) => {
@@ -286,7 +367,6 @@ exports.uploadBook = (req, res) => {
         description: req.body.description,
         genre: req.body.genre,
         author: req.body.author,
-        rating: req.body.rating,
         price: req.body.price
       })
       .then(book => {
@@ -341,8 +421,13 @@ exports.getBooks = async (req, res) => {
       order: [[req.query.sortBy, req.query.order]],
       where: filterObj
     })
-  
-    await rawBooks.rows.forEach(item => {
+
+    for await (let item of rawBooks.rows) {
+      // let itemRating = await Rating.findAndCountAll({
+      //   where: {
+
+      //   }
+      // })
       resArr.books.push({
         id: item.id,
         img: Buffer.from(item.img).toString('base64'),
@@ -355,8 +440,7 @@ exports.getBooks = async (req, res) => {
         price: item.price,
         postData: item.createdAt
       })
-      console.log(item.img)
-    })
+    }
     resArr.count = rawBooks.count
     if (resArr.length === 0) {
       res.status(200).send({

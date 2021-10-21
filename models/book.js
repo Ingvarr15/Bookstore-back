@@ -11,10 +11,7 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // Book.belongsTo(models.User, {
-      //   as: 'book',
-      //   constraints: false
-      // })
+
       Book.belongsTo(models.User)
     }
   };
@@ -27,11 +24,7 @@ module.exports = (sequelize, DataTypes) => {
     author: DataTypes.STRING,
     price: DataTypes.FLOAT,
     rating: DataTypes.FLOAT,
-    // userId: {
-    //   type: DataTypes.INTEGER,
-    //   references: 'Users',
-    //   referencesKey: 'id',
-    // },
+
   }, {
     sequelize,
     modelName: 'Book',

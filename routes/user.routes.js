@@ -86,7 +86,12 @@ module.exports = function(app) {
   )
 
   app.delete(
-    `/delete-comment`,
+    '/delete-comment',
     controller.deleteComment
+  )
+
+  app.patch(
+    '/set-rating',
+    controller.setRating
   )
 }
