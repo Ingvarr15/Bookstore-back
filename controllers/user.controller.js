@@ -126,13 +126,11 @@ exports.deletePersonal = (req, res) => {
 }
 
 exports.deleteComment = async (req, res) => {
-  console.log(req.body)
   try {
     const targetComment = await Comment.findByPk(req.body.id)
     targetComment.destroy()
     res.status(201).send('Comment deleted')
   } catch (error) {
-    console.log(error)
   }
 }
 
@@ -171,7 +169,6 @@ exports.sendComment = async (req, res) => {
       io.emit('newComment')
       res.status(200).send('ok')
     } catch(error) {
-      console.log(error)
     }
 }
 
@@ -179,7 +176,6 @@ exports.getReplies = async (req, res) => {
   let resArr = {
     repliesItems: []
   }
-  console.log('----------------------------------------------------------------------------------------------')
   try {
     let replies = await Comment.findAndCountAll({
       where: {
@@ -199,10 +195,8 @@ exports.getReplies = async (req, res) => {
       resArr.repliesItems.push(resObj)
     }
     resArr.count = replies.count
-    console.log('--------------------------------', resArr)
     res.status(200).send(resArr)
   } catch (error) {
-    console.log(error)
     res.status(404).send({
       message: 'No replies'
     })
@@ -210,7 +204,6 @@ exports.getReplies = async (req, res) => {
 }
 
 exports.checkReplies = async (req, res) => {
-  console.log(req.body)
   try {
     const repliesToCheck = await Comment.findAll({
       where: {
@@ -223,7 +216,6 @@ exports.checkReplies = async (req, res) => {
     }
     res.status(200).send('okk')
   } catch (error) {
-    console.log(error)
   }
 }
 
@@ -264,7 +256,6 @@ exports.getComments = async (req, res) => {
     }
     res.status(200).send(resArr)
   } catch (error) {
-    console.log(error)
   }
 }
 
@@ -279,7 +270,6 @@ exports.setSocket = async (req, res) => {
     await owner.save()
     res.status(200).send('ok')
   } catch (error) {
-    console.log(error)
   }
 }
 
@@ -346,7 +336,6 @@ exports.setRating = async (req, res) => {
       }
 
     } catch (error) {
-      console.log(error)
     }
 }
 
@@ -419,7 +408,6 @@ exports.getBooks = async (req, res) => {
     }
   }
   try {
-    console.log('-----filterObj-----filterObj-----filterObj-----', filterObj)
     const rawBooks = await Book.findAndCountAll({
       limit: 9,
       offset: (req.query.page - 1) * 9,
@@ -449,7 +437,6 @@ exports.getBooks = async (req, res) => {
     }
     res.status(200).send(resArr)
   } catch (error) {
-    console.log(error)
     res.status(400).send({
       message: 'Bad request'
     })
@@ -475,12 +462,10 @@ exports.getOneBook = async (req, res) => {
       } else {
         book.img = Buffer.from(book.img).toString('base64')
         book.img2 = !book.img2 ? null : Buffer.from(book.img2).toString('base64')
-        console.log('------------|||||||||||||____________________|||||||||||||||||||||')
         res.status(200).send(book)
       }
     } 
   } catch (error) {
-    console.log(error)
   }
 }
 

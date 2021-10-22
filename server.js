@@ -26,7 +26,6 @@ app.use(express.json({ limit: "50mb" }))
 const db = require('./models')
 
 io.on('connect', (socket) => {
-  console.log(socket.id)
   io.emit('newConnection')
 })
 
