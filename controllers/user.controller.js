@@ -391,16 +391,17 @@ exports.getBooks = async (req, res) => {
     books: []
   }
   let filterObj = {}
+  // let genreArr = []
 
   if (req.query.filterBy) {
     if(req.query.filterBy === 'price' || req.query.filterBy === 'rating') {
       if (!req.query.from) {
         filterObj[req.query.filterBy] = {
-          [Op.lt]: [req.query.to]
+          [Op.lte]: [req.query.to]
         }
       } else if (!req.query.to) {
         filterObj[req.query.filterBy] = {
-          [Op.gt]: [req.query.from]
+          [Op.gte]: [req.query.from]
         }
       } else {
         filterObj[req.query.filterBy] = {
@@ -409,12 +410,16 @@ exports.getBooks = async (req, res) => {
       }
     } else if (req.query.filterBy === 'author') {
       filterObj[req.query.filterBy] = {[Op.iLike]: `%${req.query.filterValue}%`}
-    }
-     else {
+    } else if (req.query.filterBy === 'genre') {
+      filterObj[req.query.filterBy] = {
+        [Op.or]: [req.query.filterValue]
+      }
+    } else {
       filterObj[req.query.filterBy] = req.query.filterValue
     }
   }
   try {
+    console.log('-----filterObj-----filterObj-----filterObj-----', filterObj)
     const rawBooks = await Book.findAndCountAll({
       limit: 9,
       offset: (req.query.page - 1) * 9,
@@ -423,11 +428,6 @@ exports.getBooks = async (req, res) => {
     })
 
     for await (let item of rawBooks.rows) {
-      // let itemRating = await Rating.findAndCountAll({
-      //   where: {
-
-      //   }
-      // })
       resArr.books.push({
         id: item.id,
         img: Buffer.from(item.img).toString('base64'),
