@@ -45,7 +45,6 @@ app.get('/', function(req, res) {
 
 require('./routes/auth.routes')(app)
 require('./routes/user.routes')(app)
-require('./ioModule.js')(io)
 
 server.listen(PORT, () => {
   console.log(`${PORT}`)
