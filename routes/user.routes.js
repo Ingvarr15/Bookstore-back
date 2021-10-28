@@ -42,6 +42,7 @@ module.exports = function(app) {
 
   app.post(
     '/upload',
+    authJwt.verifyToken,
     controller.uploadBook
   )
 
@@ -57,6 +58,7 @@ module.exports = function(app) {
 
   app.post(
     '/post-comment',
+    authJwt.verifyToken,
     controller.sendComment
   )
 
@@ -92,6 +94,7 @@ module.exports = function(app) {
 
   app.patch(
     '/set-rating',
+    authJwt.verifyToken,
     controller.setRating
   )
 }

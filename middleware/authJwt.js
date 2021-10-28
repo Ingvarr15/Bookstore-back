@@ -16,7 +16,8 @@ verifyToken = (req, res, next) => {
         message: 'Unauthorized'
       })
     }
-    req.userId = decoded.userId
+    req.userId = decoded.id
+    res.locals.userId = decoded.id
     next()
   })
 }

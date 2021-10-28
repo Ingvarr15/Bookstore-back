@@ -12,16 +12,7 @@ const { Op } = require('sequelize')
 const { sequelize } = require('../models')
 
 exports.getPersonal = async (req, res) => {
-  let token = req.cookies.token
-  let userId
-  jwt.verify(token, config.secret, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({
-        message: 'Unauthorized'
-      })
-    }
-    userId = decoded.id
-  })
+  const userId = res.locals.userId
   try {
     const targetUser = await User.findByPk(userId)
     const ratingsArr = []
@@ -54,81 +45,64 @@ exports.getPersonal = async (req, res) => {
 }
 
 exports.updatePersonal = (req, res) => {
-  let token = req.cookies.token
-  let targetField
-  jwt.verify(token, config.secret, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({
-        message: 'Unauthorized'
-      })
+  const userId = res.locals.userId
+  let { username, email, password, dob, avatar } = req.body
+  User.findByPk(userId).then(user => {
+    if (username) {
+      user.username = username
     }
-    userId = decoded.id
-    let { username, email, password, dob, avatar } = req.body
-    User.findByPk(userId).then(user => {
-      if (username) {
-        user.username = username
-      }
-      if (email) {
-        user.email = email
-        targetField = 'email'
-      }
-      if (password) {
-        user.password = cryptoJS.AES.encrypt(password, config.secret).toString()
-      }
-      if (dob) {
-        user.dob = dob
-        targetField = 'dob'
-      }
-      if (avatar) {
-        const randomString = crypto.randomBytes(5).toString('hex')
-        const pathToAvatar = `./public/user/${randomString}.png`
-        const stream = fs.createWriteStream(pathToAvatar)
-        stream.on('finish', () => {
-          console.log('file has been written')
-        })
-        stream.write(Buffer.from(avatar), 'utf-8')
-        stream.end()
-        user.avatar = pathToAvatar.substring(9)
-      }
-      return user
-    })
-    .then((user) => {
-      user.save().then(success, fail)
-    })
+    if (email) {
+      user.email = email
+      targetField = 'email'
+    }
+    if (password) {
+      user.password = cryptoJS.AES.encrypt(password, config.secret).toString()
+    }
+    if (dob) {
+      user.dob = dob
+      targetField = 'dob'
+    }
+    if (avatar) {
+      const randomString = crypto.randomBytes(5).toString('hex')
+      const pathToAvatar = `./public/user/${randomString}.png`
+      const stream = fs.createWriteStream(pathToAvatar)
+      stream.on('finish', () => {
+        console.log('file has been written')
+      })
+      stream.write(Buffer.from(avatar), 'utf-8')
+      stream.end()
+      user.avatar = pathToAvatar.substring(9)
+    }
+    return user
+  })
+  .then((user) => {
+    user.save().then(success, fail)
   })
 
   function success(user) {
-      return res.status(200).send(user)
+    return res.status(200).send(user)
   }
 
   function fail() {
-      let message
-      switch (targetField) {
-        case 'email':
-          message = 'Email is already in use'
-          break
-        case 'dob':
-          message = 'Date of birth is not valid'
-          break
-      }
-      return res.status(409).send({message})
+    let message
+    switch (targetField) {
+      case 'email':
+        message = 'Email is already in use'
+        break
+      case 'dob':
+        message = 'Date of birth is not valid'
+        break
+    }
+    return res.status(409).send({message})
   }
 }
 
 exports.deletePersonal = (req, res) => {
-  let token = req.headers['x-access-token']
-  jwt.verify(token, config.secret, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({
-        message: 'Unauthorized'
-      })
-    }
-    userId = decoded.id
-    User.findByPk(userId).then(user => {
-      user.destroy();
-      return res.status(204).send({
-        message: 'User has been deleted'
-      })
+  const userId = res.locals.userId
+  User.findByPk(userId).then(user => {
+    user.destroy();
+    return res.status(204).send({
+      message: 'User has been deleted'
     })
   })
 }
@@ -143,41 +117,32 @@ exports.deleteComment = async (req, res) => {
 }
 
 exports.sendComment = async (req, res) => {
-  let token = req.cookies.token
-  let userId
-  jwt.verify(token, config.secret, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({
-        message: 'Unauthorized'
+  const userId = res.locals.userId
+  try {
+    let userOwner = await User.findByPk(userId)
+    let bookOwner = await Book.findByPk(req.body.bookId)
+    let comment = await Comment.create({
+      text: req.body.text,
+      replyTo: req.body.replyTo !== '' ? req.body.replyTo : null
+    })
+    await comment.setUser(userOwner)
+    await comment.setBook(bookOwner)
+
+    if (req.body.replyTo !== '') {
+      let replyTarget = await User.findByPk(req.body.replyTo)
+      let targetBook = await comment.getBook()
+      let replier = await comment.getUser()
+
+      io.to(replyTarget.socket).emit('newReply', {
+        book: targetBook.id,
+        replier: replier.id,
+        text: comment.text
       })
     }
-    userId = decoded.id
-  })
-    try {
-      let userOwner = await User.findByPk(userId)
-      let bookOwner = await Book.findByPk(req.body.bookId)
-      let comment = await Comment.create({
-        text: req.body.text,
-        replyTo: req.body.replyTo !== '' ? req.body.replyTo : null
-      })
-      await comment.setUser(userOwner)
-      await comment.setBook(bookOwner)
-
-      if (req.body.replyTo !== '') {
-        let replyTarget = await User.findByPk(req.body.replyTo)
-        let targetBook = await comment.getBook()
-        let replier = await comment.getUser()
-
-        io.to(replyTarget.socket).emit('newReply', {
-          book: targetBook.id,
-          replier: replier.id,
-          text: comment.text
-        })
-      }
-      io.emit('newComment')
-      res.status(200).send('ok')
-    } catch(error) {
-    }
+    io.emit('newComment')
+    res.status(200).send('ok')
+  } catch(error) {
+  }
 }
 
 exports.getReplies = async (req, res) => {
@@ -282,16 +247,7 @@ exports.setSocket = async (req, res) => {
 }
 
 exports.setRating = async (req, res) => {
-  let token = req.cookies.token
-  let userId
-  jwt.verify(token, config.secret, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({
-        message: 'Unauthorized'
-      })
-    }
-    userId = decoded.id
-  })
+  const userId = res.locals.userId
     try {
       const targetBook = await Book.findOne({
         where: {
@@ -348,56 +304,47 @@ exports.setRating = async (req, res) => {
 }
 
 exports.uploadBook = (req, res) => {
-  let token = req.cookies.token
-  jwt.verify(token, config.secret, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({
-        message: 'Unauthorized'
-      })
-    }
-    userId = decoded.id
-
-    const randomString = crypto.randomBytes(5).toString('hex')
-    const pathToImg1 = `./public/book/${randomString}-1.png`
-    const pathToImg2 = req.body.img2.length > 10 ? `./public/book/${randomString}-2.png` : null
-    const stream1 = fs.createWriteStream(pathToImg1)
-    stream1.on('finish', () => {
+  const userId = res.locals.userId
+  const randomString = crypto.randomBytes(5).toString('hex')
+  const pathToImg1 = `./public/book/${randomString}-1.png`
+  const pathToImg2 = req.body.img2.length > 10 ? `./public/book/${randomString}-2.png` : null
+  const stream1 = fs.createWriteStream(pathToImg1)
+  stream1.on('finish', () => {
+    console.log('file has been written')
+  })
+  stream1.write(Buffer.from(req.body.img), 'utf-8')
+  stream1.end()
+  if (req.body.img2.length > 10) {
+    const stream2 = fs.createWriteStream(pathToImg2)
+    stream2.on('finish', () => {
       console.log('file has been written')
     })
-    stream1.write(Buffer.from(req.body.img), 'utf-8')
-    stream1.end()
-    if (req.body.img2.length > 10) {
-      const stream2 = fs.createWriteStream(pathToImg2)
-      stream2.on('finish', () => {
-        console.log('file has been written')
-      })
-      stream2.write(Buffer.from(req.body.img2), 'utf-8')
-      stream2.end()
-    }
+    stream2.write(Buffer.from(req.body.img2), 'utf-8')
+    stream2.end()
+  }
 
-    User.findByPk(userId).then(user => {
-      Book.create({
-        img: pathToImg1.substring(9),
-        img2: req.body.img2.length > 10 ? pathToImg2.substring(9) : null,
-        name: req.body.name,
-        description: req.body.description,
-        genre: req.body.genre,
-        author: req.body.author,
-        price: req.body.price
-      })
-      .then(book => {
-        book.setUser(user)
-        res.send({ message: 'Book uploaded' })
-      })
-      .catch(err => {
-        res.status(500).send({ message: err.message })
-      })
+  User.findByPk(userId).then(user => {
+    Book.create({
+      img: pathToImg1.substring(9),
+      img2: req.body.img2.length > 10 ? pathToImg2.substring(9) : null,
+      name: req.body.name,
+      description: req.body.description,
+      genre: req.body.genre,
+      author: req.body.author,
+      price: req.body.price
+    })
+    .then(book => {
+      book.setUser(user)
+      res.send({ message: 'Book uploaded' })
     })
     .catch(err => {
-      res.clearCookie('token')
-      res.status(404).send({
-        message: 'User not found'
-      })
+      res.status(500).send({ message: err.message })
+    })
+  })
+  .catch(err => {
+    res.clearCookie('token')
+    res.status(404).send({
+      message: 'User not found'
     })
   })
 }
