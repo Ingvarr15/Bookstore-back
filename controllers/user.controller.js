@@ -38,7 +38,7 @@ exports.getPersonal = async (req, res) => {
     }
     res.status(200).send({
       id: targetUser.id,
-      avatar: !targetUser.avatar ? null : Buffer.from(targetUser.avatar).toString('base64'),
+      avatar: targetUser.avatar,
       username: targetUser.username,
       email: targetUser.email,
       dob: targetUser.dob,
@@ -80,7 +80,15 @@ exports.updatePersonal = (req, res) => {
         targetField = 'dob'
       }
       if (avatar) {
-        user.avatar = avatar
+        const randomString = crypto.randomBytes(5).toString('hex')
+        const pathToAvatar = `./public/user/${randomString}.png`
+        const stream = fs.createWriteStream(pathToAvatar)
+        stream.on('finish', () => {
+          console.log('file has been written')
+        })
+        stream.write(Buffer.from(avatar), 'utf-8')
+        stream.end()
+        user.avatar = pathToAvatar.substring(9)
       }
       return user
     })
