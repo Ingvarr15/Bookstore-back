@@ -8,13 +8,14 @@ const app = express()
 const http = require('http')
 const server = http.createServer(app)
 const { Server } = require('socket.io')
+require('dotenv').config()
 io = new Server(server)
 
 let corsOptions = {
   origin: 'http://localhost:3000'
 }
 
-const PORT = process.env.PORT || 8080
+const PORT = process.env.PORT
 
 app.use(cors(corsOptions))
 app.use(bodyParser.json({ limit: "50mb" }))
