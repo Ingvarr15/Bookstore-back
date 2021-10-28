@@ -29,6 +29,16 @@ io.on('connect', (socket) => {
   io.emit('newConnection')
 })
 
+if (!fs.existsSync('public')) {
+  fs.mkdirSync('public')
+  fs.mkdirSync('public/book')
+  fs.mkdirSync('public/user')
+} else if (!fs.existsSync('public/book')) {
+  fs.mkdirSync('public/book')
+} else if (!fs.existsSync('public/user')) {
+  fs.mkdirSync('public/user')
+}
+
 db.sequelize.sync().then(() => {
   // db.Role.create({
   //   role_name: 'user',
