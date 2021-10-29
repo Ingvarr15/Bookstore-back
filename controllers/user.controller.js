@@ -416,6 +416,7 @@ exports.getBooks = async (req, res) => {
 }
 
 exports.getOneBook = async (req, res) => {
+  console.log(req.query)
   try {
     if (req.query.bookId === '') {
       res.status(404).send({
@@ -427,13 +428,14 @@ exports.getOneBook = async (req, res) => {
           id: req.query.bookId
         }
       })
+      console.log('------------', book)
       if (book === null) {
         res.status(404).send({
           message: 'Book is not found'
         })
       } else {
-        book.img = Buffer.from(book.img).toString('base64')
-        book.img2 = !book.img2 ? null : Buffer.from(book.img2).toString('base64')
+        // book.img = Buffer.from(book.img).toString('base64')
+        // book.img2 = !book.img2 ? null : Buffer.from(book.img2).toString('base64')
         res.status(200).send(book)
       }
     } 
