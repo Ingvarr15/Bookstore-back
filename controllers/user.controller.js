@@ -3,7 +3,6 @@ const User = db.User
 const Book = db.Book
 const Rating = db.Rating
 const Comment = db.Comment
-const jwt = require('jsonwebtoken')
 const config = require('../config/auth.config.js')
 let cryptoJS = require("crypto-js")
 const crypto = require('crypto')
@@ -46,6 +45,7 @@ exports.getPersonal = async (req, res) => {
 
 exports.updatePersonal = (req, res) => {
   const userId = res.locals.userId
+  let targetField
   let { username, email, password, dob, avatar } = req.body
   User.findByPk(userId).then(user => {
     if (username) {
@@ -113,6 +113,7 @@ exports.deleteComment = async (req, res) => {
     targetComment.destroy()
     res.status(201).send('Comment deleted')
   } catch (error) {
+    console.log(error)
   }
 }
 
@@ -133,15 +134,16 @@ exports.sendComment = async (req, res) => {
       let targetBook = await comment.getBook()
       let replier = await comment.getUser()
 
-      io.to(replyTarget.socket).emit('newReply', {
+      global.io.to(replyTarget.socket).emit('newReply', {
         book: targetBook.id,
         replier: replier.id,
         text: comment.text
       })
     }
-    io.emit('newComment')
+    global.io.emit('newComment')
     res.status(200).send('ok')
   } catch(error) {
+    console.log(error)
   }
 }
 
@@ -158,7 +160,6 @@ exports.getReplies = async (req, res) => {
     })
     for await (let item of replies.rows) {
       let owner = await User.findByPk(item.UserId)
-      let book = await Book.findByPk(item.BookId)
       let resObj = {
         id: item.id,
         owner: owner.username,
@@ -189,6 +190,7 @@ exports.checkReplies = async (req, res) => {
     }
     res.status(200).send('okk')
   } catch (error) {
+    console.log(error)
   }
 }
 
@@ -229,6 +231,7 @@ exports.getComments = async (req, res) => {
     }
     res.status(200).send(resArr)
   } catch (error) {
+    console.log(error)
   }
 }
 
@@ -243,6 +246,7 @@ exports.setSocket = async (req, res) => {
     await owner.save()
     res.status(200).send('ok')
   } catch (error) {
+    console.log(error)
   }
 }
 
@@ -271,36 +275,35 @@ exports.setRating = async (req, res) => {
         await newRating.save()
         targetBook.rating = newRating.rating
         await targetBook.save()
-        await recalculateRating()
+        await recalculateRating(targetBook)
       } else {
         existingRating.rating = +req.body.rating
         await existingRating.save()
-        await recalculateRating()
+        await recalculateRating(targetBook)
       }      
       res.status(200).send('ok')
-
-      async function recalculateRating() {
-        const countRaters = await Rating.count({
-          where: {
-            BookId: req.body.bookId
-          }
-        })
-        if (countRaters === 1) {
-          targetBook.rating = +req.body.rating
-        } else {
-          const result = await Rating.findAll({
-            attributes: [[sequelize.fn('sum', sequelize.col('rating')), 'total']],
-            where: {
-              BookId: req.body.bookId
-            }
-          })
-          targetBook.rating = result[0].dataValues.total / countRaters
-        }
-        await targetBook.save()
-      }
-
     } catch (error) {
+      console.log(error)
     }
+  async function recalculateRating(targetBook) {
+    const countRaters = await Rating.count({
+      where: {
+        BookId: req.body.bookId
+      }
+    })
+    if (countRaters === 1) {
+      targetBook.rating = +req.body.rating
+    } else {
+      const result = await Rating.findAll({
+        attributes: [[sequelize.fn('sum', sequelize.col('rating')), 'total']],
+        where: {
+          BookId: req.body.bookId
+        }
+      })
+      targetBook.rating = result[0].dataValues.total / countRaters
+    }
+    await targetBook.save()
+  }
 }
 
 exports.uploadBook = (req, res) => {
@@ -337,11 +340,11 @@ exports.uploadBook = (req, res) => {
       book.setUser(user)
       res.send({ message: 'Book uploaded' })
     })
-    .catch(err => {
-      res.status(500).send({ message: err.message })
+    .catch(error => {
+      res.status(500).send({ message: error.message })
     })
   })
-  .catch(err => {
+  .catch(() => {
     res.clearCookie('token')
     res.status(404).send({
       message: 'User not found'
@@ -440,6 +443,7 @@ exports.getOneBook = async (req, res) => {
       }
     } 
   } catch (error) {
+    console.log(error)
   }
 }
 

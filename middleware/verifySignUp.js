@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 const db = require('../models')
 const User = db.User
 

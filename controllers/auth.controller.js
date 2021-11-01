@@ -1,17 +1,14 @@
 const db = require('../models')
 const config = require('../config/auth.config')
 const User = db.User
-const Role = db.Role
 const { validationResult } = require('express-validator')
-
-let jwt = require('jsonwebtoken')
-let cryptoJS = require("crypto-js");
-const user = require('../models/user')
+const jwt = require('jsonwebtoken')
+const cryptoJS = require("crypto-js");
 
 exports.signup = (req, res) => {
   const errors = validationResult(req)
     if (!errors.isEmpty()) {
-      let errorsObj = errors.array()
+      const errorsObj = errors.array()
       let message
       if (errorsObj[0].param === 'email') {
         message = 'Invalid email address'

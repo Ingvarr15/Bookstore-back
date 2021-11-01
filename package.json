@@ -28,6 +28,7 @@
     "socket.io": "^4.2.0"
   },
   "devDependencies": {
+    "eslint": "^8.1.0",
     "sequelize-cli": "^6.2.0"
   }
 }
